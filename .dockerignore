@@ -1,0 +1,4 @@
+*
+!infocon/
+**/__pycache__/
+**/*.pyc

@@ -1,0 +1,26 @@
+# docker compose up -d --build     then open http://<host>:8377/
+services:
+  infocon:
+    build: .
+    image: infocon-auto:latest
+    container_name: infocon
+    restart: unless-stopped
+    ports:
+      - "8377:8377"
+    environment:
+      INFOCON_INTERVAL: "30"        # minutes between refreshes
+      INFOCON_BACKFILL_DAYS: "75"   # history reconstructed on first start (0 = none)
+      # SANS ISC asks API users for contact details in the User-Agent:
+      # INFOCON_USER_AGENT: "infocon-auto/1.0 (you@example.org)"
+    volumes:
+      - infocon-data:/data          # feed cache, score history, published site
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  infocon-data:
