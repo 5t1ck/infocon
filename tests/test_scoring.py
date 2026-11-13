@@ -161,5 +161,32 @@ class BigServices(unittest.TestCase):
         self.assertEqual(level, "YELLOW")
 
 
+class StatusCard(unittest.TestCase):
+    def status(self, **kw):
+        base = {"level": "YELLOW", "score": 48.9, "degraded": False, "generated": "2026-11-13T22:15:00+00:00",
+                "drivers": [{"component": "infrastructure", "label": "Big-service incidents", "score": 74.5,
+                             "text": "Microsoft 365: users can't sign in <major> & " + "more words " * 30},
+                            {"component": "chatter", "label": "Security headlines", "text": "x", "score": 50}]}
+        return {**base, **kw}
+
+    def test_card_is_valid_svg_with_reason(self):
+        from xml.dom import minidom
+        from infocon import render
+        svg = render.card(self.status())
+        minidom.parseString(svg)  # escaping holds for <, & and quotes
+        self.assertIn("YELLOW", svg)
+        self.assertIn("Microsoft 365", svg)
+        self.assertIn("Also: Security headlines", svg)
+        self.assertIn("…", svg)  # long reasons are cut, not overflowed
+
+    def test_card_without_drivers_or_score(self):
+        from xml.dom import minidom
+        from infocon import render
+        minidom.parseString(render.card(self.status(level="GREEN", drivers=[])))
+        held = render.card(self.status(degraded=True, score=None))
+        minidom.parseString(held)
+        self.assertIn("level is being held", held)
+
+
 if __name__ == "__main__":
     unittest.main()

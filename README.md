@@ -102,8 +102,23 @@ but older versions are untested.
 | `index.html` | Dashboard. Works over HTTP or opened straight from disk. |
 | `status.json` | Level, score, drivers, every signal with its value and baseline, highlights, feed health. |
 | `history.json` | Score history (full resolution for two weeks, daily before that). |
-| `badge.svg` | Embeddable badge. |
+| `status.svg` | Embeddable status card: level, score and the main reason for it. |
+| `badge.svg` | Small embeddable badge (level and score only). |
 | `status.txt` | `YELLOW 36` for scripts, prompts and status bars. |
+
+### Embed the status card
+
+`status.svg` is the equivalent of the SANS `status.gif`, with the reason
+included: the level, the score, the top indicator driving it, what else is
+elevated, and when it was computed.
+
+```html
+<a href="https://5t1ck.github.io/infocon/"><img alt="Internet threat level" src="https://5t1ck.github.io/infocon/status.svg"></a>
+```
+
+In Grafana, paste that into a **Text** panel set to HTML mode (500 x 96 px;
+it scales). GitHub Pages caches files for 10 minutes, and the timestamp on the
+card shows how fresh it is.
 
 State lives in `data/` (feed cache, score history, hysteresis state). Both
 folders are generated; delete them to start over. `INFOCON_DATA_DIR` and
