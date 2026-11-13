@@ -1,4 +1,4 @@
-# infocon-auto
+# 5t1ck InfoCon
 
 An automated Internet threat level: GREEN / YELLOW / ORANGE / RED, recomputed
 from free public feeds every time it runs, with the reasons shown.
@@ -113,7 +113,7 @@ included: the level, the score, the top indicator driving it, what else is
 elevated, and when it was computed.
 
 ```html
-<a href="https://5t1ck.github.io/infocon/"><img alt="Internet threat level" src="https://5t1ck.github.io/infocon/status.svg"></a>
+<a href="https://5t1ck.github.io/infocon/"><img alt="5t1ck InfoCon status" src="https://5t1ck.github.io/infocon/status.svg"></a>
 ```
 
 In Grafana, paste that into a **Text** panel set to HTML mode (500 x 96 px;

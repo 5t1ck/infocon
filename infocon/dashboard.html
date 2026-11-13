@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Internet threat level</title>
+<title>5t1ck InfoCon</title>
 <style>
 :root {
   color-scheme: light;
@@ -220,9 +220,9 @@ app.replaceChildren();
 const generated = new Date(S.generated);
 const ageH = (Date.now() - generated) / 3.6e6;
 app.append(el("header", { class: "top" },
-  el("h1", { text: "Internet threat level" }),
+  el("h1", { text: "5t1ck InfoCon" }),
   el("div", { class: "meta", title: generated.toString(), text: `Computed automatically from ${S.sources.length} public feeds · updated ${ago(S.generated)}` })));
-document.title = `${S.level}${S.score == null ? "" : " " + Math.round(S.score)} · Internet threat level`;
+document.title = `${S.level}${S.score == null ? "" : " " + Math.round(S.score)} · 5t1ck InfoCon`;
 (function favicon() {
   const hex = { GREEN: "#0ca30c", YELLOW: "#fab219", ORANGE: "#ec835a", RED: "#d03b3b" }[S.level] || "#898781";
   const link = el("link", { rel: "icon", href: "data:image/svg+xml," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="${hex}"/></svg>`) });

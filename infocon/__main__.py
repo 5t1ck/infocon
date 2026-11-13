@@ -40,7 +40,7 @@ def cmd_status(args):
 
 
 WARMING_UP = """<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="10">
-<meta name="viewport" content="width=device-width, initial-scale=1"><title>Internet threat level</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>5t1ck InfoCon</title>
 <body style="font:16px system-ui,sans-serif;margin:15vh auto;max-width:32em;padding:0 16px;color:#888;background:#111">
 <h1 style="color:#eee;font-size:20px">Collecting the first reading</h1>
 <p>The feeds are being fetched for the first time. This page reloads itself; expect a result in about a minute.</p>
@@ -76,7 +76,7 @@ def cmd_serve(args):
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog="infocon", description="Automated Internet threat level.")
+    p = argparse.ArgumentParser(prog="infocon", description="5t1ck InfoCon: an automated Internet threat level.")
     sub = p.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("run", help="collect, score, publish to site/")
     r.add_argument("-q", "--quiet", action="store_true", help="print only 'LEVEL score'")

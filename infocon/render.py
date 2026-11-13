@@ -27,8 +27,8 @@ def thin(history, now):
 
 
 def badge(level, score):
-    left, right = "infocon", f"{level} {score:.0f}" if score is not None else level
-    lw, rw = 62, 14 + 7 * len(right)
+    left, right = "5t1ck infocon", f"{level} {score:.0f}" if score is not None else level
+    lw, rw = 96, 14 + 7 * len(right)
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{lw + rw}" height="20" role="img" '
         f'aria-label="{left}: {right}"><title>{left}: {right}</title>'
@@ -74,7 +74,7 @@ def card(status):
     why = why[0].upper() + why[1:]
     head = config.LABELS.get(drivers[0]["component"], "") if drivers and not status.get("degraded") else ""
     updated = parse_ts(status["generated"]).strftime("%d %b %H:%M UTC")
-    label = f"Internet threat level {level}" + ("" if score is None else f" {score:.0f}") + f". {why}"
+    label = f"5t1ck InfoCon {level}" + ("" if score is None else f" {score:.0f}") + f". {why}"
     w, h, lw = 500, 96, 112
     body = "".join(f'<text x="{lw + 12}" y="{39 + 15 * i}" fill="#eee" font-size="12">{escape(l)}</text>'
                    for i, l in enumerate(_wrap(why, 52, 3)))
@@ -86,7 +86,7 @@ def card(status):
         f'<g clip-path="url(#c)" font-family="Verdana,DejaVu Sans,sans-serif">'
         f'<rect width="{w}" height="{h}" fill="#1c1c1e"/><rect width="{lw}" height="{h}" fill="{color}"/>'
         f'<g fill="{ink}" text-anchor="middle">'
-        f'<text x="{lw / 2}" y="26" font-size="9" opacity=".8">INFOCON</text>'
+        f'<text x="{lw / 2}" y="26" font-size="9" opacity=".8">5T1CK INFOCON</text>'
         f'<text x="{lw / 2}" y="52" font-size="19" font-weight="bold">{level}</text>'
         + ("" if score is None else f'<text x="{lw / 2}" y="74" font-size="12">{score:.0f} / 100</text>')
         + f'</g><text x="{lw + 12}" y="20" fill="#9a9aa0" font-size="10" font-weight="bold">'
@@ -118,7 +118,7 @@ def publish(status, history):
 
 def console(status):
     score = "n/a" if status["score"] is None else f"{status['score']:.0f}/100"
-    lines = [f"INFOCON  {status['level']}  {score}   (SANS InfoCon says: {status['sans_infocon'] or 'unknown'})",
+    lines = [f"5T1CK INFOCON  {status['level']}  {score}   (SANS InfoCon says: {status['sans_infocon'] or 'unknown'})",
              f"  {status['summary']}", ""]
     for c in status["components"]:
         if c["score"] is None:
