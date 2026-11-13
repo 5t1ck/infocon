@@ -165,6 +165,7 @@ class StatusCard(unittest.TestCase):
     def status(self, **kw):
         base = {"level": "YELLOW", "score": 48.9, "degraded": False, "generated": "2026-11-13T22:15:00+00:00",
                 "drivers": [{"component": "infrastructure", "label": "Big-service incidents", "score": 74.5,
+                             "short": "Microsoft 365 <major> & incident that goes on and on and on and on and on",
                              "text": "Microsoft 365: users can't sign in <major> & " + "more words " * 30},
                             {"component": "chatter", "label": "Security headlines", "text": "x", "score": 50}]}
         return {**base, **kw}
@@ -176,7 +177,6 @@ class StatusCard(unittest.TestCase):
         minidom.parseString(svg)  # escaping holds for <, & and quotes
         self.assertIn("YELLOW", svg)
         self.assertIn("Microsoft 365", svg)
-        self.assertIn("Also: Security headlines", svg)
         self.assertIn("…", svg)  # long reasons are cut, not overflowed
 
     def test_card_without_drivers_or_score(self):
@@ -185,7 +185,7 @@ class StatusCard(unittest.TestCase):
         minidom.parseString(render.card(self.status(level="GREEN", drivers=[])))
         held = render.card(self.status(degraded=True, score=None))
         minidom.parseString(held)
-        self.assertIn("level is being held", held)
+        self.assertIn("level held", held)
 
 
 if __name__ == "__main__":

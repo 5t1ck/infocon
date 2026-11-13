@@ -60,40 +60,35 @@ def _wrap(text, width, lines):
 
 
 def card(status):
-    """status.svg: the level plus the main reason for it, sized to embed in a dashboard."""
+    """status.svg: the level and, in a few words, the main reason for it. Sized to embed."""
     level, score, drivers = status["level"], status["score"], status["drivers"]
     color, ink = COLORS[level], INK.get(level, "#fff")
     if status.get("degraded"):
-        why, more = "Too few feeds answered, so the last level is being held.", ""
+        head, why = "Feeds down", "Too few feeds answered; level held"
     elif drivers:
-        why = drivers[0]["text"]
-        rest = [d["label"] for d in drivers[1:]]
-        more = f"Also: {', '.join(rest)}" if rest else ""
+        head = config.LABELS.get(drivers[0]["component"], "")
+        why = drivers[0].get("short") or drivers[0]["label"]
     else:
-        why, more = "Nothing unusual: every signal is near its normal range.", ""
-    why = why[0].upper() + why[1:]
-    head = config.LABELS.get(drivers[0]["component"], "") if drivers and not status.get("degraded") else ""
-    updated = parse_ts(status["generated"]).strftime("%d %b %H:%M UTC")
-    label = f"5t1ck InfoCon {level}" + ("" if score is None else f" {score:.0f}") + f". {why}"
-    w, h, lw = 500, 96, 112
-    body = "".join(f'<text x="{lw + 12}" y="{39 + 15 * i}" fill="#eee" font-size="12">{escape(l)}</text>'
-                   for i, l in enumerate(_wrap(why, 52, 3)))
-    more = _wrap(more, 60, 1)[0] if more else ""
+        head, why = "All quiet", "Nothing unusual"
+    label = f"5t1ck InfoCon {level}" + ("" if score is None else f" {score:.0f}") + f". {head}: {why}"
+    tip = label + f" (computed {parse_ts(status['generated']):%d %b %H:%M} UTC)"
+    w, h, lw = 360, 80, 124
+    lines = _wrap(why, 25, 2)
+    y0 = 51 if len(lines) == 1 else 43
+    body = "".join(f'<text x="{lw + 14}" y="{y0 + 19 * i}" fill="#f2f2f2" font-size="15" font-weight="bold">'
+                   f'{escape(l)}</text>' for i, l in enumerate(lines))
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}" role="img" '
-        f'aria-label="{escape(label, True)}"><title>{escape(label)}</title>'
+        f'aria-label="{escape(label, True)}"><title>{escape(tip)}</title>'
         f'<clipPath id="c"><rect width="{w}" height="{h}" rx="6"/></clipPath>'
         f'<g clip-path="url(#c)" font-family="Verdana,DejaVu Sans,sans-serif">'
         f'<rect width="{w}" height="{h}" fill="#1c1c1e"/><rect width="{lw}" height="{h}" fill="{color}"/>'
         f'<g fill="{ink}" text-anchor="middle">'
-        f'<text x="{lw / 2}" y="26" font-size="9" opacity=".8">5T1CK INFOCON</text>'
-        f'<text x="{lw / 2}" y="52" font-size="19" font-weight="bold">{level}</text>'
-        + ("" if score is None else f'<text x="{lw / 2}" y="74" font-size="12">{score:.0f} / 100</text>')
-        + f'</g><text x="{lw + 12}" y="20" fill="#9a9aa0" font-size="10" font-weight="bold">'
-        f'{escape((head or "Status").upper())}</text>'
-        f'<text x="{w - 10}" y="20" fill="#9a9aa0" font-size="10" text-anchor="end">{updated}</text>'
-        f'{body}<text x="{lw + 12}" y="87" fill="#9a9aa0" font-size="10">{escape(more)}</text>'
-        f"</g></svg>\n"
+        f'<text x="{lw / 2}" y="19" font-size="9" opacity=".8">5T1CK INFOCON</text>'
+        f'<text x="{lw / 2}" y="47" font-size="21" font-weight="bold">{level}</text>'
+        + ("" if score is None else f'<text x="{lw / 2}" y="68" font-size="12">{score:.0f} / 100</text>')
+        + f'</g><text x="{lw + 14}" y="{y0 - 20}" fill="#a3a3a8" font-size="10" font-weight="bold" '
+        f'letter-spacing=".6">{escape(head.upper())}</text>{body}</g></svg>\n'
     )
 
 

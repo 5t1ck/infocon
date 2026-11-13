@@ -109,14 +109,14 @@ but older versions are untested.
 ### Embed the status card
 
 `status.svg` is the equivalent of the SANS `status.gif`, with the reason
-included: the level, the score, the top indicator driving it, what else is
-elevated, and when it was computed.
+included: the level, the score and, in a few words, the top indicator driving
+it ("Microsoft 365 major incident"). Hovering shows when it was computed.
 
 ```html
 <a href="https://5t1ck.github.io/infocon/"><img alt="5t1ck InfoCon status" src="https://5t1ck.github.io/infocon/status.svg"></a>
 ```
 
-In Grafana, paste that into a **Text** panel set to HTML mode (500 x 96 px;
+In Grafana, paste that into a **Text** panel set to HTML mode (360 x 80 px;
 it scales). GitHub Pages caches files for 10 minutes, and the timestamp on the
 card shows how fresh it is.
 

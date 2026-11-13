@@ -70,13 +70,15 @@ def signal(sid, label, value, baseline, what, damp=1.0, counted=True, **floors):
         "id": sid, "label": label, "value": round(value, 2), "typical": round(med, 2),
         "z": round(z, 2), "score": round(interp(config.Z_CURVE, z), 1), "counted": counted,
         "text": f"{fmt(value)} {what} (typical {fmt(med)}{delta})",
+        "short": f"{label} {(value - med) / med * 100:+.0f}%" if med else label,
     }
 
 
-def absolute(sid, label, value, score, text):
-    """Signal scored on a fixed curve rather than against its own history."""
+def absolute(sid, label, value, score, text, short=None):
+    """Signal scored on a fixed curve rather than against its own history.
+    `short` is the few-word version for the embeddable status card."""
     return {"id": sid, "label": label, "value": value, "typical": None, "z": None,
-            "score": round(score, 1), "counted": True, "text": text}
+            "score": round(score, 1), "counted": True, "text": text, "short": short or label}
 
 
 def component(cid, signals, sources):
@@ -119,7 +121,8 @@ def scanning(isc, ctx):
             score = interp([(1, 15), (1.5, 30), (2, 45), (3, 60), (5, 78), (8, 90), (12, 100)], top["ratio"])
             sigs.append(absolute(
                 "port_surge", "Port surge", top["ratio"], score,
-                f"port {top['port']} is being probed by {top['ratio']:.1f}x its usual number of sources"))
+                f"port {top['port']} is being probed by {top['ratio']:.1f}x its usual number of sources",
+                f"Port {top['port']} probes {top['ratio']:.1f}x normal"))
     return component("scanning", sigs, ["isc"])
 
 
@@ -186,7 +189,8 @@ def vulnerabilities(nvd, epss, ctx):
             "weaponised", "Likely-exploited fresh criticals", len(hot),
             interp(config.WEAPONISED_CURVE, len(hot)),
             f"{len(hot)} of {len(fresh)} critical CVEs from the last 30 days already have "
-            f"EPSS >= {config.EPSS_WEAPONISED:.0%}"))
+            f"EPSS >= {config.EPSS_WEAPONISED:.0%}",
+            f"{len(hot)} new criticals likely exploited"))
     return component("vulnerabilities", sigs, ["nvd"] + (["epss"] if epss else []))
 
 
@@ -265,6 +269,11 @@ def _hn_points(hn, ctx, kind):
     return (day[kind] if day else None), []
 
 
+def _lead(stories):
+    """The biggest story's title, for the status card."""
+    return f"News: {max(stories, key=lambda s: s['points'])['title']}" if stories else None
+
+
 def _headline(stories, noun):
     if not stories:
         return f"{noun} stories"
@@ -289,14 +298,16 @@ def infrastructure(ioda, prov, hn, ctx):
                     + (f", plus incidents at {more} other service{'' if more == 1 else 's'}" if more else ""))
         else:
             text = f"no incidents at {len(prov['checked'])} major services"
+        short = f"{top['provider']} {top['impact']} incident{' (resolved)' if over else ''}" if ranked else None
         sigs.append(absolute("providers", "Big-service incidents", round(pts, 1),
-                             interp(config.SERVICE_CURVE, pts), text))
+                             interp(config.SERVICE_CURVE, pts), text, short))
     if hn:
         pts, stories = _hn_points(hn, ctx, "outage")
         if pts is not None:
             sigs.append(absolute("hn_outage", "Outage chatter", pts, interp(config.HN_OUTAGE_CURVE, pts),
                                  f"{_headline(stories, 'outage')} on the Hacker News front page ({fmt(pts)} points)"
-                                 if pts else "no outage stories on the Hacker News front page"))
+                                 if pts else "no outage stories on the Hacker News front page",
+                                 _lead(stories)))
     if ioda:
         daily, live = ioda["daily"], ctx["live"] and ioda.get("last24") is not None
         end = ctx["today"] - DAY if live else ctx["day"] - DAY
@@ -321,7 +332,8 @@ def chatter(circl, hn, ctx):
         if pts is not None:
             sigs.append(absolute("hn_security", "Security headlines", pts, interp(config.HN_SECURITY_CURVE, pts),
                                  f"{_headline(stories, 'security')} on the Hacker News front page ({fmt(pts)} points)"
-                                 if pts else "no security stories on the Hacker News front page"))
+                                 if pts else "no security stories on the Hacker News front page",
+                                 _lead(stories)))
     return component("chatter", sigs, [s for s, d in (("circl", circl), ("hn", hn)) if d])
 
 
@@ -405,6 +417,7 @@ def drivers(components, limit=5):
         for s in c["signals"]:
             if s["counted"] and s["score"] >= FIRING:
                 out.append({"component": c["id"], "label": s["label"], "text": s["text"],
+                            "short": s.get("short") or s["label"],
                             "score": s["score"], "rank": s["score"] * c["weight"]})
     out.sort(key=lambda d: -d["rank"])
     return [{k: v for k, v in d.items() if k != "rank"} for d in out[:limit]]
