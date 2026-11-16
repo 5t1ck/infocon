@@ -93,8 +93,8 @@ Add or re-tier services in `STATUSPAGES` in [infocon/sources.py](infocon/sources
 5. **Blind spots.** If feeds carrying less than half the weight answer, the
    level is held and marked degraded rather than recomputed from scraps.
 
-Replayed over the 75 days to 15 Nov 2026 this gives GREEN on 60 days, YELLOW on
-15, ORANGE and RED on none (median score 28, 90th percentile 42, peak 51). The
+Replayed over the 75 days to 15 Nov 2026 this gives GREEN on about 60 days, YELLOW
+on about 15, ORANGE and RED on none (median score 28, 90th percentile 42, peak 51). The
 live run on 13 Nov, during a global Microsoft 365 outage, read YELLOW 49.
 
 Every knob is in [infocon/config.py](infocon/config.py): weights, level floors,
