@@ -238,7 +238,9 @@ def backfill(days=60, now=None, log=print):
         tally[level] += 1
         points.append(_point(ctx["now"], score, level, coverage, comps, backfilled=True))
 
-    history = [p for p in load_history() if not p.get("bf")] + points
+    # live readings keep their score; their level is re-read under today's rules
+    live = [dict(p, level=scoring.level_for(p["score"])) for p in load_history() if not p.get("bf")]
+    history = live + points
     history = save_history(history, now)
     status = load_json(config.SITE_DIR / "status.json", None)
     if status:
