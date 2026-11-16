@@ -6,6 +6,11 @@ on:
   schedule:
     - cron: "7,37 * * * *"
   workflow_dispatch:
+    inputs:
+      backfill:
+        description: Rebuild the 75-day history (after changing the scoring)
+        type: boolean
+        default: false
   # Publish code changes straight away instead of waiting for the next scheduled run.
   push:
     branches: [main]
@@ -44,8 +49,10 @@ jobs:
           key: infocon-data-${{ github.run_id }}
           restore-keys: infocon-data-
 
-      - name: Seed history on first run
-        run: test -f data/history.jsonl || python -m infocon backfill --days 75
+      - name: Seed history on first run, or rebuild it on request
+        env:
+          BACKFILL: ${{ inputs.backfill }}
+        run: if [ ! -f data/history.jsonl ] || [ "$BACKFILL" = "true" ]; then python -m infocon backfill --days 75; fi
 
       - name: Collect and score
         # Exit code 2 means "published, but too few feeds answered" - still worth deploying.
