@@ -28,8 +28,10 @@ scripts and from a browser page alike.
 | [`/status.svg`](https://5t1ck.github.io/infocon/status.svg) | Status card image: level, score and the main reason |
 | [`/badge.svg`](https://5t1ck.github.io/infocon/badge.svg) | Small badge: level and score |
 
-All under `https://5t1ck.github.io/infocon`. Files refresh every 30 minutes and
-are cached for 10; `generated` in the JSON says exactly how fresh they are.
+All under `https://5t1ck.github.io/infocon`. The job is scheduled every 30
+minutes, but GitHub starts scheduled jobs late (hours late on a quiet day), and
+files are cached for 10 minutes; `generated` in the JSON says exactly how fresh
+they are.
 
 Embed the status card:
 
@@ -59,12 +61,17 @@ the services people notice are read on every run:
   Atlassian, Dropbox, Reddit, npm, Vercel, Netlify, Shopify, Twitch.
 
 An incident is worth its severity (minor 1, major 3, critical 6) times its
-tier (0.75 or 2). The worst service leads and the next two add a quarter each.
+tier (0.5 or 2). The worst service leads and the next two add a quarter each.
 A few minor incidents, which is every day, land around 3 points. **One major
 outage at a tier-2 service is 6 points, which is YELLOW by itself**; a critical
-one with front-page chatter reaches ORANGE. An incident keeps counting for a
-while after it is fixed (90% for 6 h, fading to nothing at 24 h), and one left
-open for days fades too.
+one with front-page chatter reaches ORANGE. A tier-1 service cannot reach
+YELLOW alone, whatever it calls the incident (GitHub labels something
+"critical" most weeks). An incident keeps counting for a short while after it
+is fixed (90% for 2 h, gone by 12 h), and one left open for days fades too.
+
+Outage stories on Hacker News count in full only when a status page or IODA is
+elevated as well. Alone they count at half, so a headline about last week's
+outage does not raise the level.
 
 Add or re-tier services in `STATUSPAGES` in [infocon/sources.py](infocon/sources.py)
 (anything on statuspage.io works: it only needs `/api/v2/incidents.json`).
@@ -81,13 +88,13 @@ Add or re-tier services in `STATUSPAGES` in [infocon/sources.py](infocon/sources
    area lifts the level, but no single component can reach RED alone: that
    needs several agreeing.
 4. **Level.** GREEN from 0, YELLOW from 35, ORANGE from 55, RED from 75.
-   Escalation is immediate. De-escalation waits until the score has stayed 3
+   Escalation is immediate. De-escalation waits until the score has stayed 2
    points under the floor for 6 hours, so the level does not flap.
 5. **Blind spots.** If feeds carrying less than half the weight answer, the
    level is held and marked degraded rather than recomputed from scraps.
 
-Replayed over the 75 days to 12 Nov 2026 this gives GREEN on 49 days, YELLOW on
-26, ORANGE and RED on none (median score 31, 90th percentile 45, peak 53). The
+Replayed over the 75 days to 15 Nov 2026 this gives GREEN on 60 days, YELLOW on
+15, ORANGE and RED on none (median score 28, 90th percentile 42, peak 51). The
 live run on 13 Nov, during a global Microsoft 365 outage, read YELLOW 49.
 
 Every knob is in [infocon/config.py](infocon/config.py): weights, level floors,
@@ -110,6 +117,7 @@ past days.
   "minor", or is slow to post, scores low until Hacker News notices.
 - **Hacker News is a crowd.** Story matching is by title keywords, so an
   off-topic story with "outage" or "breach" in the title can add a few points.
+  Outage stories no status page confirms are halved for that reason.
 - **It measures the Internet, not your network.** A quiet day globally says
   nothing about your own exposure.
 - It depends on free services staying free and reachable. Each failure is shown
@@ -134,8 +142,10 @@ This is how the live site runs.
 
 [.github/workflows/infocon.yml](.github/workflows/infocon.yml) computes the
 level, keeps its state in the Actions cache and publishes to
-`https://<you>.github.io/<repo>/`. GitHub may start scheduled runs late when it
-is busy, and pauses schedules on repositories with no activity for 60 days.
+`https://<you>.github.io/<repo>/`. GitHub starts scheduled runs late, sometimes
+by hours, and pauses schedules on repositories with no activity for 60 days. If
+you need the 30 minutes to be exact, have any external cron call the workflow's
+`workflow_dispatch` endpoint, or use the container.
 
 ### Container
 

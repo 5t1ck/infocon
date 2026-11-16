@@ -133,11 +133,32 @@ class BigServices(unittest.TestCase):
         self.assertIn("ongoing", infra["signals"][0]["text"])
 
     def test_it_still_counts_for_hours_after_it_is_fixed(self):
-        level, infra = self.level([incident("Microsoft 365", 2, 3, started=9, ended=4)])
+        level, infra = self.level([incident("Microsoft 365", 2, 3, started=9, ended=1)])
         self.assertEqual(level, "YELLOW")
-        self.assertIn("resolved 4h ago", infra["signals"][0]["text"])
+        self.assertIn("resolved 1h ago", infra["signals"][0]["text"])
+        # ...but not for long: the hold time already keeps the level up on the way down
+        level, _ = self.level([incident("Microsoft 365", 2, 3, started=9, ended=4)])
+        self.assertEqual(level, "GREEN")
         level, _ = self.level([incident("Microsoft 365", 2, 3, started=60, ended=30)])
         self.assertEqual(level, "GREEN")
+
+    def test_tier1_service_cannot_reach_yellow_alone(self):
+        # GitHub calls a Copilot blip "critical" most weeks; that is not an Internet event
+        level, infra = self.level([incident("GitHub", 1, 6, started=1)])
+        self.assertEqual(level, "GREEN")
+        self.assertLess(infra["signals"][0]["score"], scoring.FIRING)
+
+    def test_outage_headlines_count_half_unless_a_status_page_agrees(self):
+        hn = {"daily": {}, "recent": [{"kind": "outage", "points": 660, "title": "Last week's outage, a retrospective",
+                                       "t": 0, "id": "1"}]}
+        chatter = lambda infra: next(s for s in infra["signals"] if s["id"] == "hn_outage")
+        level, infra = self.level([incident("Zoom", 1, 1, started=3)], hn)
+        self.assertEqual(level, "GREEN")
+        self.assertEqual(chatter(infra)["score"], round(scoring.interp(config.HN_OUTAGE_CURVE, 330), 1))
+        self.assertIn("counted at 50%", chatter(infra)["text"])
+        _, infra = self.level([incident("Microsoft 365", 2, 3, started=1)], hn)
+        self.assertEqual(chatter(infra)["score"], round(scoring.interp(config.HN_OUTAGE_CURVE, 660), 1))
+        self.assertNotIn("counted at", chatter(infra)["text"])
 
     def test_critical_outage_at_a_tier2_provider_reaches_orange_with_chatter(self):
         hn = {"daily": {}, "recent": [{"kind": "outage", "points": 1500, "title": "AWS is down", "t": 0, "id": "1"}]}
@@ -178,6 +199,12 @@ class StatusCard(unittest.TestCase):
         self.assertIn("YELLOW", svg)
         self.assertIn("Microsoft 365", svg)
         self.assertIn("…", svg)  # long reasons are cut, not overflowed
+
+    def test_card_says_when_the_level_is_only_being_held(self):
+        from infocon import render
+        svg = render.card(self.status(drivers=[], score=29.0, raw_level="GREEN"))
+        self.assertIn("EASING", svg)
+        self.assertIn("level held", svg)
 
     def test_card_without_drivers_or_score(self):
         from xml.dom import minidom

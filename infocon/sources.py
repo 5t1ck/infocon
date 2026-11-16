@@ -529,6 +529,9 @@ def _apple():
             kind = str(e.get("statusType", ""))
             if "aintenance" in kind or e.get("eventStatus") == "upcoming" or not e.get("epochStartDate"):
                 continue
+            # Apple files routine maintenance as an "Outage" and says so only in the message.
+            if re.search(r"maintenance|no user impact", str(e.get("message", "")), re.I):
+                continue
             pts = 2 if kind == "Outage" else 1
             out.append({"id": f"apple:{e.get('messageId')}:{svc.get('serviceName')}", "provider": "Apple", "tier": 2,
                         "title": f"{svc.get('serviceName')}: {e.get('message', '')}"[:160], "impact": _impact(pts),

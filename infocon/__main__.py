@@ -55,6 +55,10 @@ def cmd_serve(args):
         def log_message(self, *a, **k):  # the log is for refreshes, not for every page view
             pass
 
+        def end_headers(self):  # browsers revalidate each time, so an embedded status.svg is never stale
+            self.send_header("Cache-Control", "no-cache")
+            super().end_headers()
+
     handler = functools.partial(Quiet, directory=str(config.SITE_DIR))
     server = http.server.ThreadingHTTPServer((args.host, args.port), handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()

@@ -301,13 +301,6 @@ def infrastructure(ioda, prov, hn, ctx):
         short = f"{top['provider']} {top['impact']} incident{' (resolved)' if over else ''}" if ranked else None
         sigs.append(absolute("providers", "Big-service incidents", round(pts, 1),
                              interp(config.SERVICE_CURVE, pts), text, short))
-    if hn:
-        pts, stories = _hn_points(hn, ctx, "outage")
-        if pts is not None:
-            sigs.append(absolute("hn_outage", "Outage chatter", pts, interp(config.HN_OUTAGE_CURVE, pts),
-                                 f"{_headline(stories, 'outage')} on the Hacker News front page ({fmt(pts)} points)"
-                                 if pts else "no outage stories on the Hacker News front page",
-                                 _lead(stories)))
     if ioda:
         daily, live = ioda["daily"], ctx["live"] and ioda.get("last24") is not None
         end = ctx["today"] - DAY if live else ctx["day"] - DAY
@@ -317,6 +310,18 @@ def infrastructure(ioda, prov, hn, ctx):
                            _days(daily, end, 14, lambda v: len(corroborated(v["rows"]))),
                            f"corroborated country-level Internet outage{'' if n == 1 else 's'} in 24h",
                            floor_abs=2))
+    if hn:
+        pts, stories = _hn_points(hn, ctx, "outage")
+        if pts is not None:
+            # Headlines alone are hearsay: they count in full only when a status page or IODA agrees.
+            confirmed = any(s and s["score"] >= FIRING for s in sigs)
+            share = 1.0 if confirmed else config.HN_UNCONFIRMED
+            note = "" if confirmed or not pts else f", counted at {share:.0%}: no status page confirms an outage"
+            sigs.insert(1 if prov else 0, absolute(
+                "hn_outage", "Outage chatter", pts, interp(config.HN_OUTAGE_CURVE, pts * share),
+                f"{_headline(stories, 'outage')} on the Hacker News front page ({fmt(pts)} points{note})"
+                if pts else "no outage stories on the Hacker News front page",
+                _lead(stories)))
     return component("infrastructure", sigs,
                      [s for s, d in (("providers", prov), ("hn", hn), ("ioda", ioda)) if d])
 

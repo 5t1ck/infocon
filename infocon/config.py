@@ -44,7 +44,7 @@ Z_CURVE = [(-3, 5), (0, 20), (1, 30), (2, 42), (3, 55), (4, 67), (5, 77), (6, 85
 # Hysteresis: go up immediately, come down only after the score has stayed
 # MARGIN points under the current level's floor for HOLD_HOURS.
 HOLD_HOURS = 6
-MARGIN = 3
+MARGIN = 2
 
 # Below this share of total weight we refuse to change the level.
 MIN_COVERAGE = 0.5
@@ -54,20 +54,28 @@ MIN_COVERAGE = 0.5
 # worst incident plus a little for the others; the worst provider leads and the
 # next two add a share. Routine noise (a few minor incidents) lands near 3; one
 # major outage at a tier-2 provider (Microsoft 365, AWS, Google, Cloudflare,
-# Apple) is 6 points, which on its own is enough for YELLOW.
-TIER_WEIGHT = {1: 0.75, 2: 2.0}
+# Apple) is 6 points, which on its own is enough for YELLOW. A tier-1 service
+# cannot do that alone, whatever it calls the incident: GitHub labelled 12
+# incidents "critical" in 75 days, most of them under an hour.
+TIER_WEIGHT = {1: 0.5, 2: 2.0}
 SERVICE_CURVE = [(0, 8), (2, 18), (3, 24), (4, 32), (5, 48), (6, 68), (8, 74), (12, 84), (18, 93), (26, 100)]
 SAME_PROVIDER = 0.15      # share of a provider's further incidents (capped at 1.5x its worst)
 OTHER_PROVIDERS = 0.25    # share of the second- and third-worst providers
 # An outage that has ended still counts for a while: (hours since it ended, weight).
-RESOLVED_DECAY = [(6, 0.9), (12, 0.6), (24, 0.3)]
+# Kept short because the level is already held for HOLD_HOURS on the way down.
+RESOLVED_DECAY = [(2, 0.9), (6, 0.5), (12, 0.25)]
 # An incident left open for days stops being news: (hours open, weight).
 OPEN_DECAY = [(24, 1.0), (72, 0.7), (168, 0.4), (720, 0.2)]
 OPEN_STALE = 0.1
 
 # Hacker News: summed points of front-page stories from the last 24 h.
 HN_OUTAGE_CURVE = [(0, 10), (100, 22), (200, 35), (400, 52), (700, 66), (1000, 75), (1500, 85), (2500, 95), (4000, 100)]
-HN_SECURITY_CURVE = [(0, 10), (200, 20), (500, 30), (1000, 42), (1500, 52), (2500, 66), (3500, 78), (5000, 90), (8000, 100)]
+# Outage stories count at this share unless a status page or IODA is elevated
+# too: a headline about last week's outage is not an outage.
+HN_UNCONFIRMED = 0.5
+# Security stories are on the front page every day (median 220 points, 90th
+# percentile 1,400 over 75 days), so an ordinary day sits near 20 on this curve.
+HN_SECURITY_CURVE = [(0, 10), (250, 20), (700, 28), (1500, 38), (2500, 50), (4000, 65), (6000, 80), (9000, 100)]
 
 # Fresh critical CVEs (<=30 days old) that EPSS already rates >=10% likely exploited.
 WEAPONISED_CURVE = [(0, 12), (1, 20), (2, 30), (4, 47), (6, 58), (10, 72), (16, 85), (25, 100)]

@@ -6,6 +6,10 @@ on:
   schedule:
     - cron: "7,37 * * * *"
   workflow_dispatch:
+  # Publish code changes straight away instead of waiting for the next scheduled run.
+  push:
+    branches: [main]
+    paths: ["infocon/**", ".github/workflows/infocon.yml"]
 
 permissions:
   contents: read
@@ -27,14 +31,14 @@ jobs:
       # Optional repo variable: a User-Agent with contact details, as SANS ISC asks of API users.
       INFOCON_USER_AGENT: ${{ vars.INFOCON_USER_AGENT }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.x"
 
       # data/ (feed cache, score history, hysteresis state) rides along in the Actions cache.
       - name: Restore state
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: data
           key: infocon-data-${{ github.run_id }}
@@ -49,14 +53,14 @@ jobs:
 
       - name: Save state
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: data
           key: infocon-data-${{ github.run_id }}
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
 
       - id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
