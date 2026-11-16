@@ -57,9 +57,10 @@ the services people notice are read on every run:
 
 - **Tier 3** (half the Internet notices): [Microsoft 365](https://status.cloud.microsoft/),
   Azure, AWS, Google Cloud, Google Workspace, Apple, Cloudflare.
-- **Tier 2** (most organisations use it every day): GitHub, Slack, Zoom, Akamai.
-- **Tier 1**: DigitalOcean, Discord, OpenAI, Claude, Atlassian, Dropbox, Reddit,
-  npm, Vercel, Netlify, Shopify, Twitch.
+- **Tier 2** (most organisations use it every day): GitHub, Slack, Zoom, Akamai,
+  OpenAI, Claude, Atlassian.
+- **Tier 1**: DigitalOcean, Discord, Dropbox, Reddit, npm, Vercel, Netlify,
+  Shopify, Twitch.
 
 An incident is worth its severity (minor 1, major 3, critical 6) times the
 weight of its tier. The worst service leads and the next two add a quarter
@@ -74,7 +75,8 @@ is YELLOW by itself.
 
 The wait is there because status pages cry wolf: GitHub labelled 12 incidents
 "critical" in 75 days, 9 of them under 2 hours. Minor incidents never earn the
-higher weight. A critical tier-3 outage with front-page chatter reaches ORANGE.
+higher weight, and neither does one confined to a single component of a service
+("Claude unable to join meetings"). A critical tier-3 outage with front-page chatter reaches ORANGE.
 An incident counts in full for 6 hours after it is fixed, so a run that comes
 late still reports it, and one left open for days fades.
 
@@ -101,8 +103,8 @@ Add or re-tier services in `STATUSPAGES` in [infocon/sources.py](infocon/sources
 5. **Blind spots.** If feeds carrying less than half the weight answer, the
    level is held and marked degraded rather than recomputed from scraps.
 
-Replayed over the 75 days to 15 Nov 2026 this gives GREEN on about 56 days, YELLOW
-on about 19, ORANGE and RED on none (median score 28, 90th percentile 47, peak 51). The
+Replayed over the 75 days to 15 Nov 2026 this gives GREEN on about 57 days, YELLOW
+on about 18, ORANGE and RED on none (median score 28, 90th percentile 47, peak 54). The
 live run on 13 Nov, during a global Microsoft 365 outage, read YELLOW 49.
 
 Every knob is in [infocon/config.py](infocon/config.py): weights, level floors,

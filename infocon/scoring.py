@@ -238,10 +238,13 @@ def incident_weight(inc, now, daily=False):
 def tier_weight(inc, now):
     """Weight of the incident's service. Smaller services start low and earn
     their full weight only once a major or critical incident has lasted
-    (SUSTAINED_HOURS); a minor one left open for days is still minor."""
+    (SUSTAINED_HOURS). A minor one left open for days is still minor, and so
+    is one feature of a service being broken ("unable to join meetings")."""
     first, full = config.TIER_WEIGHT.get(inc.get("tier"), (1.0, 1.0))
     start, end = parse_ts(inc.get("started")), parse_ts(inc.get("ended"))
     if full <= first or not start or inc.get("points", 0) < config.SUSTAINED_MIN_POINTS:
+        return first
+    if 0 < inc.get("parts", 0) < config.SUSTAINED_MIN_PARTS:
         return first
     lasted = (min(end or now, now) - start).total_seconds() / 3600
     lo, hi = config.SUSTAINED_HOURS

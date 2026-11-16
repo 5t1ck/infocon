@@ -53,7 +53,8 @@ MIN_COVERAGE = 0.5
 # Tier weight is (at first, once sustained), rising between SUSTAINED_HOURS:
 #   3  half the Internet (Microsoft 365, AWS, Google, Cloudflare, Apple): a
 #      major outage is 6 points straight away.
-#   2  what most organisations use every day (GitHub, Slack, Zoom, Akamai):
+#   2  what most organisations use every day (GitHub, Slack, Zoom, Akamai,
+#      OpenAI, Claude, Atlassian):
 #      6 points once a critical outage has lasted 2 h or a major one 4 h.
 #   1  everything else: only a critical outage lasting 4 h gets there.
 # The wait is there because status pages cry wolf: GitHub labelled 12 incidents
@@ -61,6 +62,7 @@ MIN_COVERAGE = 0.5
 TIER_WEIGHT = {1: (0.5, 1.0), 2: (0.5, 2.0), 3: (2.0, 2.0)}
 SUSTAINED_HOURS = (1, 4)
 SUSTAINED_MIN_POINTS = 3     # minor incidents never earn the sustained weight
+SUSTAINED_MIN_PARTS = 2      # nor one confined to a single component of the service (where the page says)
 SERVICE_CURVE = [(0, 8), (2, 18), (3, 24), (4, 32), (5, 48), (6, 68), (8, 74), (12, 84), (18, 93), (26, 100)]
 SAME_PROVIDER = 0.15      # share of a provider's further incidents (capped at 1.5x its worst)
 OTHER_PROVIDERS = 0.25    # share of the second- and third-worst providers

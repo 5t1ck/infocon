@@ -41,9 +41,9 @@ STATUSPAGES = {
     "DigitalOcean": ("https://status.digitalocean.com", 1),
     "Zoom": ("https://www.zoomstatus.com", 2),
     "Discord": ("https://discordstatus.com", 1),
-    "OpenAI": ("https://status.openai.com", 1),
-    "Claude": ("https://status.claude.com", 1),
-    "Atlassian": ("https://status.atlassian.com", 1),
+    "OpenAI": ("https://status.openai.com", 2),
+    "Claude": ("https://status.claude.com", 2),
+    "Atlassian": ("https://status.atlassian.com", 2),
     "Dropbox": ("https://status.dropbox.com", 1),
     "Reddit": ("https://www.redditstatus.com", 1),
     "npm": ("https://status.npmjs.org", 1),
@@ -422,7 +422,7 @@ def _statuspage(name, base, tier):
                     "impact": i.get("impact") or "minor", "points": IMPACT_POINTS.get(i.get("impact"), 1),
                     "started": i.get("started_at") or i.get("created_at"),
                     "ended": i.get("resolved_at") or (i.get("updated_at") if done else None),
-                    "url": i.get("shortlink") or base})
+                    "url": i.get("shortlink") or base, "parts": len(i.get("components") or [])})
     return out
 
 

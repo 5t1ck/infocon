@@ -150,6 +150,10 @@ class BigServices(unittest.TestCase):
         self.assertEqual(self.level([incident("Slack", 2, 3, started=4.5)])[0], "YELLOW")    # major, 4 h+
         # the length it reached still counts once it is fixed
         self.assertEqual(self.level([incident("GitHub", 2, 6, started=4, ended=2)])[0], "YELLOW")
+        # one broken feature is not the service being down, however long it lasts
+        feature = dict(incident("Claude", 2, 3, started=30), parts=1)
+        self.assertEqual(scoring.tier_weight(feature, NOW), 0.5)
+        self.assertEqual(scoring.tier_weight(dict(feature, parts=4), NOW), 2.0)
         # a minor incident left open all week is still minor
         self.assertEqual(scoring.tier_weight(incident("Slack", 2, 2, started=200), NOW), 0.5)
 
