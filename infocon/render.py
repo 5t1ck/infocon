@@ -68,9 +68,6 @@ def card(status):
     elif drivers:
         head = config.LABELS.get(drivers[0]["component"], "")
         why = drivers[0].get("short") or drivers[0]["label"]
-    elif status.get("raw_level") not in (None, level):
-        # nothing is elevated any more; the level is only waiting out the hold time
-        head, why = "Easing", f"Back to normal; level held for {config.HOLD_HOURS} hours"
     else:
         head, why = "All quiet", "Nothing unusual"
     label = f"5t1ck InfoCon {level}" + ("" if score is None else f" {score:.0f}") + f". {head}: {why}"

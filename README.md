@@ -55,19 +55,28 @@ Embed the status card:
 "Outlook is down for everyone" should move the needle, so the status pages of
 the services people notice are read on every run:
 
-- **Tier 2** (half the Internet notices): [Microsoft 365](https://status.cloud.microsoft/),
+- **Tier 3** (half the Internet notices): [Microsoft 365](https://status.cloud.microsoft/),
   Azure, AWS, Google Cloud, Google Workspace, Apple, Cloudflare.
-- **Tier 1**: Akamai, GitHub, DigitalOcean, Slack, Zoom, Discord, OpenAI, Claude,
-  Atlassian, Dropbox, Reddit, npm, Vercel, Netlify, Shopify, Twitch.
+- **Tier 2** (most organisations use it every day): GitHub, Slack, Zoom, Akamai.
+- **Tier 1**: DigitalOcean, Discord, OpenAI, Claude, Atlassian, Dropbox, Reddit,
+  npm, Vercel, Netlify, Shopify, Twitch.
 
-An incident is worth its severity (minor 1, major 3, critical 6) times its
-tier (0.5 or 2). The worst service leads and the next two add a quarter each.
-A few minor incidents, which is every day, land around 3 points. **One major
-outage at a tier-2 service is 6 points, which is YELLOW by itself**; a critical
-one with front-page chatter reaches ORANGE. A tier-1 service cannot reach
-YELLOW alone, whatever it calls the incident (GitHub labels something
-"critical" most weeks). An incident keeps counting for a short while after it
-is fixed (90% for 2 h, gone by 12 h), and one left open for days fades too.
+An incident is worth its severity (minor 1, major 3, critical 6) times the
+weight of its tier. The worst service leads and the next two add a quarter
+each. A few minor incidents, which is every day, land around 3 points; 6 points
+is YELLOW by itself.
+
+| Tier | Weight | YELLOW by itself |
+|---|---|---|
+| 3 | 2 | A major outage, at once |
+| 2 | 0.5, rising to 2 between 1 h and 4 h | A critical outage lasting 2 h, or a major one lasting 4 h |
+| 1 | 0.5, rising to 1 between 1 h and 4 h | A critical outage lasting 4 h |
+
+The wait is there because status pages cry wolf: GitHub labelled 12 incidents
+"critical" in 75 days, 9 of them under 2 hours. Minor incidents never earn the
+higher weight. A critical tier-3 outage with front-page chatter reaches ORANGE.
+An incident counts in full for 6 hours after it is fixed, so a run that comes
+late still reports it, and one left open for days fades.
 
 Outage stories on Hacker News count in full only when a status page or IODA is
 elevated as well. Alone they count at half, so a headline about last week's
@@ -87,18 +96,17 @@ Add or re-tier services in `STATUSPAGES` in [infocon/sources.py](infocon/sources
 3. **Composite.** A weighted power mean (p=4) of the components. One alarming
    area lifts the level, but no single component can reach RED alone: that
    needs several agreeing.
-4. **Level.** GREEN from 0, YELLOW from 35, ORANGE from 55, RED from 75.
-   Escalation is immediate. De-escalation waits until the score has stayed 2
-   points under the floor for 6 hours, so the level does not flap.
+4. **Level.** GREEN from 0, YELLOW from 35, ORANGE from 55, RED from 75. The
+   level is always the band the score is in.
 5. **Blind spots.** If feeds carrying less than half the weight answer, the
    level is held and marked degraded rather than recomputed from scraps.
 
-Replayed over the 75 days to 15 Nov 2026 this gives GREEN on about 60 days, YELLOW
-on about 15, ORANGE and RED on none (median score 28, 90th percentile 42, peak 51). The
+Replayed over the 75 days to 15 Nov 2026 this gives GREEN on about 56 days, YELLOW
+on about 19, ORANGE and RED on none (median score 28, 90th percentile 47, peak 51). The
 live run on 13 Nov, during a global Microsoft 365 outage, read YELLOW 49.
 
 Every knob is in [infocon/config.py](infocon/config.py): weights, level floors,
-curves, hold time. Re-run `backfill` after changing them to see the effect on
+curves, tiers. Re-run `backfill` after changing them to see the effect on
 past days.
 
 ## Limits
@@ -222,8 +230,8 @@ With cron instead of `serve`:
 Developed and tested on Python 3.14. Nothing newer than 3.9 is knowingly used,
 but older versions are untested.
 
-Outputs go to `site/` and state to `data/` (feed cache, score history,
-hysteresis state). Both folders are generated; delete them to start over.
+Outputs go to `site/` and state to `data/` (feed cache, score history, last
+level). Both folders are generated; delete them to start over.
 `INFOCON_DATA_DIR` and `INFOCON_SITE_DIR` relocate them.
 
 ### Being a good API citizen

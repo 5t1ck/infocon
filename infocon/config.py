@@ -41,29 +41,32 @@ POWER = 4
 # Robust z-score -> 0-100. A normal day (z=0) scores 20.
 Z_CURVE = [(-3, 5), (0, 20), (1, 30), (2, 42), (3, 55), (4, 67), (5, 77), (6, 85), (8, 95), (10, 100)]
 
-# Hysteresis: go up immediately, come down only after the score has stayed
-# MARGIN points under the current level's floor for HOLD_HOURS.
-HOLD_HOURS = 6
-MARGIN = 2
-
 # Below this share of total weight we refuse to change the level.
 MIN_COVERAGE = 0.5
 
 # Big-service incidents. One incident is worth severity points (minor 1,
 # major 3, critical 6) x its provider's tier weight. A provider is worth its
 # worst incident plus a little for the others; the worst provider leads and the
-# next two add a share. Routine noise (a few minor incidents) lands near 3; one
-# major outage at a tier-2 provider (Microsoft 365, AWS, Google, Cloudflare,
-# Apple) is 6 points, which on its own is enough for YELLOW. A tier-1 service
-# cannot do that alone, whatever it calls the incident: GitHub labelled 12
-# incidents "critical" in 75 days, most of them under an hour.
-TIER_WEIGHT = {1: 0.5, 2: 2.0}
+# next two add a share. Routine noise (a few minor incidents) lands near 3, and
+# 6 points is enough for YELLOW on its own.
+#
+# Tier weight is (at first, once sustained), rising between SUSTAINED_HOURS:
+#   3  half the Internet (Microsoft 365, AWS, Google, Cloudflare, Apple): a
+#      major outage is 6 points straight away.
+#   2  what most organisations use every day (GitHub, Slack, Zoom, Akamai):
+#      6 points once a critical outage has lasted 2 h or a major one 4 h.
+#   1  everything else: only a critical outage lasting 4 h gets there.
+# The wait is there because status pages cry wolf: GitHub labelled 12 incidents
+# "critical" in 75 days, 9 of them under 2 hours.
+TIER_WEIGHT = {1: (0.5, 1.0), 2: (0.5, 2.0), 3: (2.0, 2.0)}
+SUSTAINED_HOURS = (1, 4)
+SUSTAINED_MIN_POINTS = 3     # minor incidents never earn the sustained weight
 SERVICE_CURVE = [(0, 8), (2, 18), (3, 24), (4, 32), (5, 48), (6, 68), (8, 74), (12, 84), (18, 93), (26, 100)]
 SAME_PROVIDER = 0.15      # share of a provider's further incidents (capped at 1.5x its worst)
 OTHER_PROVIDERS = 0.25    # share of the second- and third-worst providers
 # An outage that has ended still counts for a while: (hours since it ended, weight).
-# Kept short because the level is already held for HOLD_HOURS on the way down.
-RESOLVED_DECAY = [(2, 0.9), (6, 0.5), (12, 0.25)]
+# Full weight for 6 h, so a run that comes hours late still reports it.
+RESOLVED_DECAY = [(6, 1.0), (12, 0.5)]
 # An incident left open for days stops being news: (hours open, weight).
 OPEN_DECAY = [(24, 1.0), (72, 0.7), (168, 0.4), (720, 0.2)]
 OPEN_STALE = 0.1

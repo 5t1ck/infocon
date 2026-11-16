@@ -32,13 +32,14 @@ IODA = "https://api.ioda.inetintel.cc.gatech.edu/v2"
 HN = "https://hn.algolia.com/api/v1"
 
 # Status pages in the statuspage.io format: name -> (base URL, tier).
-# Tier 2 = half the Internet notices when it breaks; tier 1 = widely used.
+# Tier 3 = half the Internet notices when it breaks; tier 2 = most organisations
+# use it every day; tier 1 = widely used.
 STATUSPAGES = {
-    "Cloudflare": ("https://www.cloudflarestatus.com", 2),
-    "Akamai": ("https://www.akamaistatus.com", 1),
-    "GitHub": ("https://www.githubstatus.com", 1),
+    "Cloudflare": ("https://www.cloudflarestatus.com", 3),
+    "Akamai": ("https://www.akamaistatus.com", 2),
+    "GitHub": ("https://www.githubstatus.com", 2),
     "DigitalOcean": ("https://status.digitalocean.com", 1),
-    "Zoom": ("https://www.zoomstatus.com", 1),
+    "Zoom": ("https://www.zoomstatus.com", 2),
     "Discord": ("https://discordstatus.com", 1),
     "OpenAI": ("https://status.openai.com", 1),
     "Claude": ("https://status.claude.com", 1),
@@ -51,6 +52,8 @@ STATUSPAGES = {
     "Shopify": ("https://status.shopify.com", 1),
     "Twitch": ("https://status.twitch.tv", 1),
 }
+# Tiers of the services that are not on statuspage.io (set where each is fetched).
+OTHER_TIERS = {"Microsoft 365": 3, "Azure": 3, "AWS": 3, "Google Cloud": 3, "Google Workspace": 3, "Apple": 3, "Slack": 2}
 # Severity points for one incident, before the tier multiplier.
 IMPACT_POINTS = {"none": 0.3, "minor": 1, "major": 3, "critical": 6}
 
@@ -431,14 +434,14 @@ def _microsoft365(now):
         pts = _ms_points(row.get("Status"))
         if pts:
             name = row.get("ServiceDisplayName") or "Microsoft 365"
-            out.append({"id": f"ms:consumer:{name}", "provider": "Microsoft 365", "tier": 2,
+            out.append({"id": f"ms:consumer:{name}", "provider": "Microsoft 365", "tier": 3,
                         "title": f"{name}: {_plain(row.get('Title')) or row.get('Status')}",
                         "impact": _impact(pts), "points": pts, "started": now.isoformat(), "first_seen": True, "ended": None, "url": page})
     try:  # the business / enterprise side of the same page
         post = fetch_json(f"{page}api/posts/mac", timeout=25, retries=1)
         pts = _ms_points(post.get("Status")) if isinstance(post, dict) else 0
         if pts:
-            out.append({"id": f"ms:business:{post.get('Id')}", "provider": "Microsoft 365", "tier": 2,
+            out.append({"id": f"ms:business:{post.get('Id')}", "provider": "Microsoft 365", "tier": 3,
                         "title": "Microsoft 365 for business: " + _ms_summary(post),
                         "impact": _impact(pts), "points": pts, "started": now.isoformat(), "first_seen": True, "ended": None, "url": page})
     except FetchError:
@@ -460,7 +463,7 @@ def _azure(now):
                 started = parsedate_to_datetime(pub.group(1).strip()).astimezone(UTC).isoformat()
             except (TypeError, ValueError):
                 pass
-        out.append({"id": f"az:{title[:80]}", "provider": "Azure", "tier": 2, "title": title[:160], "impact": "major",
+        out.append({"id": f"az:{title[:80]}", "provider": "Azure", "tier": 3, "title": title[:160], "impact": "major",
                     "points": IMPACT_POINTS["major"], "started": started, "ended": None,
                     "url": "https://azure.status.microsoft/en-us/status"})
     if not out:
@@ -468,7 +471,7 @@ def _azure(now):
             post = fetch_json("https://status.cloud.microsoft/api/posts/azure", timeout=20, retries=1)
             pts = _ms_points(post.get("Status")) if isinstance(post, dict) else 0
             if pts:
-                out.append({"id": "az:post", "provider": "Azure", "tier": 2,
+                out.append({"id": "az:post", "provider": "Azure", "tier": 3,
                             "title": _plain(post.get("Message")) or "Azure issue",
                             "impact": _impact(pts), "points": pts, "started": now.isoformat(), "first_seen": True, "ended": None,
                             "url": "https://status.cloud.microsoft/"})
@@ -491,7 +494,7 @@ def _aws_event(e, where=""):
     stamps = [int(l["timestamp"]) for l in log if str(l.get("timestamp", "")).isdigit()]
     where = e.get("region_name") or e.get("service_name") or where
     title = summary.replace("[RESOLVED]", "").strip() + (f" ({where})" if where else "")
-    return {"id": "aws:" + str(e.get("arn") or f"{where}:{e['date']}"), "provider": "AWS", "tier": 2, "title": title[:160],
+    return {"id": "aws:" + str(e.get("arn") or f"{where}:{e['date']}"), "provider": "AWS", "tier": 3, "title": title[:160],
             "impact": _AWS[worst][0], "points": _AWS[worst][1], "started": _iso(e["date"]),
             "ended": _iso(max(stamps)) if resolved and stamps else None,
             "url": "https://health.aws.amazon.com/health/status"}
@@ -512,7 +515,7 @@ def _aws_history():
 def _google(provider, base):
     pts = {"low": 1, "medium": 3, "high": 6}
     return [
-        {"id": f"g:{provider}:{i.get('id')}", "provider": provider, "tier": 2,
+        {"id": f"g:{provider}:{i.get('id')}", "provider": provider, "tier": 3,
          "title": ((i.get("service_name") + ": ") if i.get("service_name") else "") + _plain(
              re.sub(r"^\W*Summary:\W*", "", (i.get("external_desc") or "").split("**Description")[0]), 130),
          "impact": _impact(pts.get(i.get("severity"), 1)), "points": pts.get(i.get("severity"), 1),
@@ -533,7 +536,7 @@ def _apple():
             if re.search(r"maintenance|no user impact", str(e.get("message", "")), re.I):
                 continue
             pts = 2 if kind == "Outage" else 1
-            out.append({"id": f"apple:{e.get('messageId')}:{svc.get('serviceName')}", "provider": "Apple", "tier": 2,
+            out.append({"id": f"apple:{e.get('messageId')}:{svc.get('serviceName')}", "provider": "Apple", "tier": 3,
                         "title": f"{svc.get('serviceName')}: {e.get('message', '')}"[:160], "impact": _impact(pts),
                         "points": pts, "started": _iso(e["epochStartDate"] / 1000),
                         "ended": _iso(e["epochEndDate"] / 1000) if e.get("epochEndDate") else None,
@@ -549,7 +552,7 @@ def _slack():
     except FetchError:
         pass
     return [
-        {"id": f"slack:{i.get('id')}", "provider": "Slack", "tier": 1, "title": str(i.get("title", ""))[:160],
+        {"id": f"slack:{i.get('id')}", "provider": "Slack", "tier": 2, "title": str(i.get("title", ""))[:160],
          "impact": _impact(pts.get(i.get("type"), 1)), "points": pts.get(i.get("type"), 1),
          "started": i.get("date_created"), "ended": i.get("date_updated") if i.get("status") == "resolved" else None,
          "url": i.get("url") or "https://slack-status.com/"}
@@ -604,6 +607,9 @@ def services(now, cache):
                 if r.get("src") == name and r.get("seen") and not r.get("ended") and key not in live:
                     last = parse_ts(r["seen"]) or now
                     r["ended"] = (now if now - last < dt.timedelta(hours=3) else last).isoformat()
+    tiers = {**{name: tier for name, (_, tier) in STATUSPAGES.items()}, **OTHER_TIERS}
+    for r in store.values():  # records kept from earlier runs follow today's tiers
+        r["tier"] = tiers.get(r.get("provider"), r.get("tier"))
     if not ok:
         raise FetchError("no status page reachable: " + "; ".join(failed)[:200])
     cutoff = (now - 200 * DAY).isoformat()

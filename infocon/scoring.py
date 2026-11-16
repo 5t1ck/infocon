@@ -7,7 +7,6 @@ what an "infocon" is for, and means no per-feed magic thresholds.
 """
 import bisect
 import collections
-import datetime as dt
 import math
 import statistics
 
@@ -236,6 +235,19 @@ def incident_weight(inc, now, daily=False):
     return next((w for h, w in config.OPEN_DECAY if open_for < h), config.OPEN_STALE)
 
 
+def tier_weight(inc, now):
+    """Weight of the incident's service. Smaller services start low and earn
+    their full weight only once a major or critical incident has lasted
+    (SUSTAINED_HOURS); a minor one left open for days is still minor."""
+    first, full = config.TIER_WEIGHT.get(inc.get("tier"), (1.0, 1.0))
+    start, end = parse_ts(inc.get("started")), parse_ts(inc.get("ended"))
+    if full <= first or not start or inc.get("points", 0) < config.SUSTAINED_MIN_POINTS:
+        return first
+    lasted = (min(end or now, now) - start).total_seconds() / 3600
+    lo, hi = config.SUSTAINED_HOURS
+    return first + (full - first) * min(max((lasted - lo) / (hi - lo), 0.0), 1.0)
+
+
 def service_load(incidents, now, daily=False):
     """(points, ranked) for big-service incidents. ranked = [(points, incident)]
     for everything that still counts, worst first. Each provider is worth its
@@ -243,7 +255,7 @@ def service_load(incidents, now, daily=False):
     the remaining providers add a share."""
     ranked = []
     for inc in incidents:
-        pts = inc.get("points", 0) * config.TIER_WEIGHT.get(inc.get("tier"), 1) * incident_weight(inc, now, daily)
+        pts = inc.get("points", 0) * tier_weight(inc, now) * incident_weight(inc, now, daily)
         if pts > 0:
             ranked.append((pts, inc))
     ranked.sort(key=lambda r: -r[0])
@@ -384,33 +396,18 @@ def level_for(score):
     return name
 
 
-def _rank(level):
-    return [l for l, _ in config.LEVELS].index(level)
-
-
-def apply_hysteresis(score, coverage, state, now):
-    """Escalate at once; de-escalate only after HOLD_HOURS clearly below the floor."""
-    state = dict(state or {})
-    prev = state.get("level")
+def settle(score, coverage, state, now):
+    """The level is whatever band the score is in. Only when too few feeds
+    answer to judge is the previous level kept, and marked degraded."""
+    state = {k: v for k, v in (state or {}).items() if k in ("level", "since")}
     if score is None or coverage < config.MIN_COVERAGE:
-        state.setdefault("level", prev or "GREEN")
+        state.setdefault("level", "GREEN")
         state["degraded"] = True
         return state
+    level = level_for(score)
+    if level != state.get("level"):
+        state.update(level=level, since=now.isoformat())
     state["degraded"] = False
-    raw = level_for(score)
-    if prev is None or _rank(raw) > _rank(prev):
-        state.update(level=raw, since=now.isoformat(), below_since=None)
-    elif _rank(raw) < _rank(prev):
-        floor = dict(config.LEVELS)[prev] - config.MARGIN
-        if score < floor:
-            below = parse_ts(state.get("below_since")) or now
-            state["below_since"] = below.isoformat()
-            if now - below >= dt.timedelta(hours=config.HOLD_HOURS):
-                state.update(level=raw, since=now.isoformat(), below_since=None)
-        else:
-            state["below_since"] = None
-    else:
-        state["below_since"] = None
     return state
 
 

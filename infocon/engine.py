@@ -143,10 +143,7 @@ def summarise(level, state, drivers, components):
         if label not in names:
             names.append(label)
     lead = " and ".join(names[:2]) if len(names) <= 2 else f"{names[0]}, {names[1]} and {len(names) - 2} more"
-    text = f"Elevated {lead}."
-    if state.get("below_since"):
-        text += f" Score has eased; holding {level} until it stays down for {config.HOLD_HOURS}h."
-    return text
+    return f"Elevated {lead}."
 
 
 # -------------------------------------------------------------------------- run
@@ -171,7 +168,7 @@ def run(now=None, log=print):
 
     comps = scoring.evaluate(raw, epss, _ctx(now))
     score, coverage = scoring.composite(comps)
-    state = scoring.apply_hysteresis(score, coverage, state, now)
+    state = scoring.settle(score, coverage, state, now)
     level = state["level"]
     drv = scoring.drivers(comps)
 
@@ -182,7 +179,6 @@ def run(now=None, log=print):
         "level_since": state.get("since"),
         "score": score,
         "raw_level": scoring.level_for(score) if score is not None else None,
-        "easing_since": state.get("below_since"),
         "coverage": coverage,
         "degraded": state.get("degraded", False),
         "summary": summarise(level, state, drv, comps),
@@ -199,8 +195,7 @@ def run(now=None, log=print):
              "note": errors.get(sid), "seconds": timings.get(sid)}
             for sid, (name, url) in sources.SOURCE_INFO.items()
         ],
-        "method": {"levels": config.LEVELS, "weights": config.WEIGHTS, "power": config.POWER,
-                   "hold_hours": config.HOLD_HOURS, "margin": config.MARGIN},
+        "method": {"levels": config.LEVELS, "weights": config.WEIGHTS, "power": config.POWER},
     }
 
     history = load_history()

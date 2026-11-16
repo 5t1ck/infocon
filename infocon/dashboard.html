@@ -510,12 +510,11 @@ const pts = HIST.map((p) => ({ ...p, d: new Date(p.t) })).filter((p) => !isNaN(p
       { h: "Note", v: (r) => r.note || "" },
     ], S.sources)));
 
-  const hold = (S.method && S.method.hold_hours) || 6, margin = (S.method && S.method.margin) || 3;
   app.append(el("section", { class: "card" }, el("details", null,
     el("summary", { text: "How the level is computed" }),
-    el("p", { text: "Each signal is compared with its own recent history using a robust z-score (median and MAD, on a log scale for heavy-tailed counts), then mapped to 0–100 so an ordinary day scores about 20. Signals with no meaningful baseline use fixed curves instead: a port surge, fresh criticals with high EPSS, Hacker News front-page points, and incidents at big services. An incident is worth its severity times the size of the service, so one major outage at Microsoft 365, AWS, Google, Cloudflare or Apple is enough for Yellow by itself, and it keeps counting for some hours after it is fixed." }),
+    el("p", { text: "Each signal is compared with its own recent history using a robust z-score (median and MAD, on a log scale for heavy-tailed counts), then mapped to 0–100 so an ordinary day scores about 20. Signals with no meaningful baseline use fixed curves instead: a port surge, fresh criticals with high EPSS, Hacker News front-page points, and incidents at big services. An incident is worth its severity times the size of the service, so one major outage at Microsoft 365, AWS, Google, Cloudflare or Apple is enough for Yellow by itself. GitHub, Slack, Zoom and Akamai get there once an outage has lasted a few hours. An incident keeps counting for 6 hours after it is fixed." }),
     el("p", { text: `Each component is 70% its loudest signal plus 30% the average. The composite is a weighted power mean (p=${(S.method && S.method.power) || 4}) of the components, so one alarming area lifts the level without a single noisy feed being able to push it to Red on its own. Weights: ${S.components.map((c) => `${c.label} ${Math.round((weights[c.id] ?? c.weight) * 100)}%`).join(", ")}.` }),
-    el("p", { text: `Levels: ${LEVELS.map(([n, f]) => `${cap(n)} from ${f}`).join(", ")}. The level rises as soon as the score crosses a floor, and falls only after the score has stayed ${margin} points under that floor for ${hold} hours, so it does not flap.` }),
+    el("p", { text: `Levels: ${LEVELS.map(([n, f]) => `${cap(n)} from ${f}`).join(", ")}. The level is always the band the score is in.` }),
     el("p", { text: "Limits worth knowing: active exploitation rests on a single feed (CISA KEV), the Orange and Red floors have not yet been tested against a real major incident, and reconstructed history leaves out port surges, EPSS and the status pages that publish no history (Microsoft, Azure)." }))));
 
   app.append(el("footer", null,

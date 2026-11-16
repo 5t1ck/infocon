@@ -71,30 +71,23 @@ class Composite(unittest.TestCase):
         self.assertEqual(cov, 0.8)
 
 
-class Hysteresis(unittest.TestCase):
-    def test_escalates_immediately(self):
-        st = scoring.apply_hysteresis(20, 1, {}, NOW)
-        st = scoring.apply_hysteresis(60, 1, st, NOW + dt.timedelta(minutes=30))
+class Level(unittest.TestCase):
+    def test_level_is_always_the_band_the_score_is_in(self):
+        st = scoring.settle(20, 1, {}, NOW)
+        st = scoring.settle(60, 1, st, NOW + dt.timedelta(minutes=30))
         self.assertEqual(st["level"], "ORANGE")
-
-    def test_holds_before_stepping_down(self):
-        st = scoring.apply_hysteresis(60, 1, {}, NOW)
-        st = scoring.apply_hysteresis(20, 1, st, NOW + dt.timedelta(hours=1))
-        self.assertEqual(st["level"], "ORANGE")
-        st = scoring.apply_hysteresis(20, 1, st, NOW + dt.timedelta(hours=1 + config.HOLD_HOURS))
+        st = scoring.settle(34, 1, st, NOW + dt.timedelta(minutes=60))
         self.assertEqual(st["level"], "GREEN")
+        self.assertEqual(st["since"], (NOW + dt.timedelta(minutes=60)).isoformat())
 
-    def test_bounce_back_resets_the_clock(self):
-        st = scoring.apply_hysteresis(60, 1, {}, NOW)
-        st = scoring.apply_hysteresis(20, 1, st, NOW + dt.timedelta(hours=1))
-        st = scoring.apply_hysteresis(54, 1, st, NOW + dt.timedelta(hours=2))  # inside the margin
-        self.assertIsNone(st["below_since"])
-        st = scoring.apply_hysteresis(20, 1, st, NOW + dt.timedelta(hours=3 + config.HOLD_HOURS - 2))
-        self.assertEqual(st["level"], "ORANGE")
+    def test_since_only_moves_when_the_level_changes(self):
+        st = scoring.settle(40, 1, {}, NOW)
+        st = scoring.settle(50, 1, st, NOW + dt.timedelta(hours=1))
+        self.assertEqual(st["since"], NOW.isoformat())
 
     def test_blind_run_keeps_previous_level(self):
-        st = scoring.apply_hysteresis(60, 1, {}, NOW)
-        st = scoring.apply_hysteresis(10, 0.3, st, NOW + dt.timedelta(days=2))
+        st = scoring.settle(60, 1, {}, NOW)
+        st = scoring.settle(10, 0.3, st, NOW + dt.timedelta(days=2))
         self.assertEqual(st["level"], "ORANGE")
         self.assertTrue(st["degraded"])
 
@@ -127,26 +120,43 @@ class BigServices(unittest.TestCase):
         score, _ = scoring.composite(comps)
         return scoring.level_for(score), infra
 
-    def test_major_outage_at_a_tier2_provider_is_at_least_yellow(self):
-        level, infra = self.level([incident("Microsoft 365", 2, 3, started=2)])
+    def test_major_outage_at_a_tier3_provider_is_at_least_yellow(self):
+        level, infra = self.level([incident("Microsoft 365", 3, 3, started=2)])
         self.assertEqual(level, "YELLOW")
         self.assertIn("ongoing", infra["signals"][0]["text"])
 
     def test_it_still_counts_for_hours_after_it_is_fixed(self):
-        level, infra = self.level([incident("Microsoft 365", 2, 3, started=9, ended=1)])
+        level, infra = self.level([incident("Microsoft 365", 3, 3, started=9, ended=1)])
         self.assertEqual(level, "YELLOW")
         self.assertIn("resolved 1h ago", infra["signals"][0]["text"])
-        # ...but not for long: the hold time already keeps the level up on the way down
-        level, _ = self.level([incident("Microsoft 365", 2, 3, started=9, ended=4)])
+        # a run that comes hours late still reports it...
+        level, _ = self.level([incident("Microsoft 365", 3, 3, started=9, ended=5)])
+        self.assertEqual(level, "YELLOW")
+        # ...but not for long
+        level, _ = self.level([incident("Microsoft 365", 3, 3, started=12, ended=7)])
         self.assertEqual(level, "GREEN")
-        level, _ = self.level([incident("Microsoft 365", 2, 3, started=60, ended=30)])
+        level, _ = self.level([incident("Microsoft 365", 3, 3, started=60, ended=30)])
         self.assertEqual(level, "GREEN")
 
-    def test_tier1_service_cannot_reach_yellow_alone(self):
+    def test_short_critical_at_a_tier2_service_is_not_yellow(self):
         # GitHub calls a Copilot blip "critical" most weeks; that is not an Internet event
-        level, infra = self.level([incident("GitHub", 1, 6, started=1)])
+        level, infra = self.level([incident("GitHub", 2, 6, started=0.75)])
         self.assertEqual(level, "GREEN")
         self.assertLess(infra["signals"][0]["score"], scoring.FIRING)
+
+    def test_sustained_outage_at_a_tier2_service_is_yellow(self):
+        self.assertEqual(self.level([incident("GitHub", 2, 6, started=2.5)])[0], "YELLOW")   # critical, 2 h+
+        self.assertEqual(self.level([incident("Slack", 2, 3, started=2.5)])[0], "GREEN")     # major, not yet
+        self.assertEqual(self.level([incident("Slack", 2, 3, started=4.5)])[0], "YELLOW")    # major, 4 h+
+        # the length it reached still counts once it is fixed
+        self.assertEqual(self.level([incident("GitHub", 2, 6, started=4, ended=2)])[0], "YELLOW")
+        # a minor incident left open all week is still minor
+        self.assertEqual(scoring.tier_weight(incident("Slack", 2, 2, started=200), NOW), 0.5)
+
+    def test_tier1_service_needs_a_long_critical_outage(self):
+        self.assertEqual(self.level([incident("Twitch", 1, 3, started=10)])[0], "GREEN")
+        self.assertEqual(self.level([incident("Twitch", 1, 6, started=2)])[0], "GREEN")
+        self.assertEqual(self.level([incident("Twitch", 1, 6, started=5)])[0], "YELLOW")
 
     def test_outage_headlines_count_half_unless_a_status_page_agrees(self):
         hn = {"daily": {}, "recent": [{"kind": "outage", "points": 660, "title": "Last week's outage, a retrospective",
@@ -156,29 +166,29 @@ class BigServices(unittest.TestCase):
         self.assertEqual(level, "GREEN")
         self.assertEqual(chatter(infra)["score"], round(scoring.interp(config.HN_OUTAGE_CURVE, 330), 1))
         self.assertIn("counted at 50%", chatter(infra)["text"])
-        _, infra = self.level([incident("Microsoft 365", 2, 3, started=1)], hn)
+        _, infra = self.level([incident("Microsoft 365", 3, 3, started=1)], hn)
         self.assertEqual(chatter(infra)["score"], round(scoring.interp(config.HN_OUTAGE_CURVE, 660), 1))
         self.assertNotIn("counted at", chatter(infra)["text"])
 
-    def test_critical_outage_at_a_tier2_provider_reaches_orange_with_chatter(self):
+    def test_critical_outage_at_a_tier3_provider_reaches_orange_with_chatter(self):
         hn = {"daily": {}, "recent": [{"kind": "outage", "points": 1500, "title": "AWS is down", "t": 0, "id": "1"}]}
-        level, _ = self.level([incident("AWS", 2, 6, started=1)], hn)
+        level, _ = self.level([incident("AWS", 3, 6, started=1)], hn)
         self.assertEqual(level, "ORANGE")
 
     def test_routine_noise_stays_green(self):
-        noise = [incident("Cloudflare", 2, 1, started=h) for h in (1, 3, 5, 8)]
-        noise += [incident("GitHub", 1, 3, started=2), incident("Zoom", 1, 1, started=6), incident("OpenAI", 1, 1, started=4)]
+        noise = [incident("Cloudflare", 3, 1, started=h) for h in (1, 3, 5, 8)]
+        noise += [incident("GitHub", 2, 3, started=2), incident("Zoom", 1, 1, started=6), incident("OpenAI", 1, 1, started=4)]
         level, infra = self.level(noise)
         self.assertEqual(level, "GREEN")
         self.assertLess(infra["signals"][0]["score"], 35)
 
     def test_incident_left_open_for_weeks_fades(self):
-        self.assertEqual(scoring.incident_weight(incident("AWS", 2, 6, started=1), NOW), 1.0)
-        self.assertLessEqual(scoring.incident_weight(incident("AWS", 2, 6, started=24 * 90), NOW), 0.1)
-        self.assertEqual(scoring.incident_weight(incident("AWS", 2, 6, started=-5), NOW), 0.0)  # not started yet
+        self.assertEqual(scoring.incident_weight(incident("AWS", 3, 6, started=1), NOW), 1.0)
+        self.assertLessEqual(scoring.incident_weight(incident("AWS", 3, 6, started=24 * 90), NOW), 0.1)
+        self.assertEqual(scoring.incident_weight(incident("AWS", 3, 6, started=-5), NOW), 0.0)  # not started yet
 
     def test_replay_counts_anything_open_that_day(self):
-        level, _ = self.level([incident("Google Cloud", 2, 3, started=20, ended=18)], live=False)
+        level, _ = self.level([incident("Google Cloud", 3, 3, started=20, ended=18)], live=False)
         self.assertEqual(level, "YELLOW")
 
 
@@ -199,12 +209,6 @@ class StatusCard(unittest.TestCase):
         self.assertIn("YELLOW", svg)
         self.assertIn("Microsoft 365", svg)
         self.assertIn("…", svg)  # long reasons are cut, not overflowed
-
-    def test_card_says_when_the_level_is_only_being_held(self):
-        from infocon import render
-        svg = render.card(self.status(drivers=[], score=29.0, raw_level="GREEN"))
-        self.assertIn("EASING", svg)
-        self.assertIn("level held", svg)
 
     def test_card_without_drivers_or_score(self):
         from xml.dom import minidom
